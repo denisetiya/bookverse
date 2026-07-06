@@ -1,0 +1,5 @@
+.git
+.env
+*.md
+.npmrc
+.pnpm-config.json

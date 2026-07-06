@@ -1,0 +1,261 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+
+const url = new URL(Astro.request.url);
+const search = url.searchParams.get('search') || '';
+const category = url.searchParams.get('category') || '';
+
+const categories = ['Fiksi', 'Non-Fiksi', 'Teknologi', 'Bisnis', 'Anak', 'Sastra'];
+---
+
+<Layout title="Katalog Buku - BookVerse">
+  <Navbar />
+  <main class="flex-1 bg-bg-canvas">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="mb-8">
+        <h1 class="font-display text-3xl font-bold text-fg">Katalog Buku</h1>
+        <p class="mt-2 text-fg-secondary">Temukan buku yang kamu cari — 100% gratis</p>
+      </div>
+
+      {/* Search & Filter */}
+      <div class="flex flex-col sm:flex-row gap-4 mb-8">
+        <div class="flex-1 relative">
+          <input
+            type="text"
+            id="searchInput"
+            value={search}
+            placeholder="Cari buku..."
+            class="w-full pl-10 pr-4 py-2 rounded-md border border-border bg-surface text-fg placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted"></i>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button data-category="" class={`px-3 py-2 rounded-md text-sm transition-colors ${!category ? 'bg-primary text-fg' : 'bg-surface border border-border text-fg-secondary hover:border-primary'}`}>
+            Semua
+          </button>
+          {categories.map((cat) => (
+            <button data-category={cat} class={`px-3 py-2 rounded-md text-sm transition-colors ${category === cat ? 'bg-primary text-fg' : 'bg-surface border border-border text-fg-secondary hover:border-primary'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Books Grid */}
+      <div id="booksGrid" class="grid grid-cols-3 gap-6">
+        {/* Books loaded via JS */}
+      </div>
+      
+      {/* Loading indicator */}
+      <div id="loadingIndicator" class="hidden py-12 text-center">
+        <div class="inline-flex items-center gap-3">
+          <div class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-fg-secondary">Memuat buku...</span>
+        </div>
+      </div>
+      
+      {/* Infinite scroll sentinel */}
+      <div id="scrollSentinel" class="h-4"></div>
+      
+      {/* No more books */}
+      <div id="noMoreBooks" class="hidden py-12 text-center">
+        <p class="text-fg-secondary">Semua buku sudah ditampilkan</p>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  let currentPage = 1;
+  let loading = false;
+  let hasMore = true;
+  let currentCategory = '';
+  let currentSearch = '';
+  
+  const grid = document.getElementById('booksGrid');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  const noMoreBooks = document.getElementById('noMoreBooks');
+  const sentinel = document.getElementById('scrollSentinel');
+  
+  // Get initial params from URL
+  const params = new URLSearchParams(window.location.search);
+  currentCategory = params.get('category') || '';
+  currentSearch = params.get('search') || '';
+  
+  function createBookCard(book) {
+    return `
+      <div class="bg-surface-card rounded-lg shadow-level1 border border-border overflow-hidden hover:shadow-level2 transition-all group">
+        <a href="/books/${book.id}">
+          <div class="aspect-[3/4] overflow-hidden relative">
+            <img 
+              src="${book.coverImage}" 
+              alt="${book.title}"
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+              onerror="this.src='https://placehold.co/300x400/e2e8f0/94a3b8?text=No+Cover'"
+            />
+            <div class="absolute top-2 right-2 bg-primary text-fg text-xs font-semibold px-2 py-1 rounded">
+              GRATIS
+            </div>
+          </div>
+        </a>
+        <div class="p-4">
+          <span class="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-sm">${book.category}</span>
+          <a href="/books/${book.id}">
+            <h3 class="font-display font-semibold mt-2 text-fg group-hover:text-primary transition-colors line-clamp-2">${book.title}</h3>
+          </a>
+          <p class="text-sm text-fg-secondary mt-1">${book.author}</p>
+          <div class="flex items-center justify-between mt-3">
+            <a href="/books/${book.id}/read" class="bg-primary hover:bg-primary-hover text-fg px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2">
+              <i class="ph ph-book-open"></i>
+              <span>Baca</span>
+            </a>
+            <button class="favorite-btn p-2 rounded-md hover:bg-bg-muted text-fg-secondary hover:text-danger transition-colors" data-book-id="${book.id}" title="Tambah ke favorit">
+              <i class="ph ph-heart"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  async function loadBooks(page = 1, append = false) {
+    if (loading || !hasMore) return;
+    loading = true;
+    loadingIndicator?.classList.remove('hidden');
+    
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '12',
+      });
+      if (currentCategory) params.set('category', currentCategory);
+      if (currentSearch) params.set('search', currentSearch);
+      
+      const res = await fetch(`/api/books?${params}`);
+      const data = await res.json();
+      
+      if (!append) {
+        grid.innerHTML = '';
+      }
+      
+      if (data.books?.length > 0) {
+        data.books.forEach(book => {
+          grid.insertAdjacentHTML('beforeend', createBookCard(book));
+        });
+        
+        hasMore = data.pagination.hasMore;
+        currentPage = page;
+        
+        if (!hasMore) {
+          noMoreBooks?.classList.remove('hidden');
+        }
+        
+        // Attach favorite handlers to new buttons
+        grid.querySelectorAll('.favorite-btn:not([data-bound])').forEach(btn => {
+          btn.setAttribute('data-bound', 'true');
+          btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const bookId = btn.dataset.bookId;
+            if (!bookId) return;
+            
+            try {
+              const res = await fetch('/api/favorites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookId }),
+              });
+              
+              if (res.ok) {
+                const data = await res.json();
+                const icon = btn.querySelector('i');
+                if (data.favorited) {
+                  icon.className = 'ph-fill ph-heart text-danger';
+                  btn.title = 'Hapus dari favorit';
+                } else {
+                  icon.className = 'ph ph-heart';
+                  btn.title = 'Tambah ke favorit';
+                }
+              } else if (res.status === 401) {
+                window.location.href = '/auth/login';
+              }
+            } catch {
+              alert('Gagal menambahkan ke favorit');
+            }
+          });
+        });
+      } else if (!append) {
+        grid.innerHTML = `
+          <div class="col-span-3 text-center py-20">
+            <i class="ph ph-books text-6xl text-fg-muted mb-4"></i>
+            <p class="text-fg-secondary">Belum ada buku ditemukan</p>
+          </div>
+        `;
+      }
+    } catch (e) {
+      console.error('Error loading books:', e);
+    } finally {
+      loading = false;
+      loadingIndicator?.classList.add('hidden');
+    }
+  }
+  
+  // Infinite scroll observer
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && hasMore && !loading) {
+      loadBooks(currentPage + 1, true);
+    }
+  }, { threshold: 0.1 });
+  
+  if (sentinel) observer.observe(sentinel);
+  
+  // Category filter buttons
+  document.querySelectorAll('[data-category]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentCategory = btn.dataset.category || '';
+      currentPage = 1;
+      hasMore = true;
+      noMoreBooks?.classList.add('hidden');
+      
+      // Update active state
+      document.querySelectorAll('[data-category]').forEach(b => {
+        if (b.dataset.category === currentCategory) {
+          b.className = 'px-3 py-2 rounded-md text-sm transition-colors bg-primary text-fg';
+        } else {
+          b.className = 'px-3 py-2 rounded-md text-sm transition-colors bg-surface border border-border text-fg-secondary hover:border-primary';
+        }
+      });
+      
+      // Update URL
+      const url = new URL(window.location);
+      if (currentCategory) {
+        url.searchParams.set('category', currentCategory);
+      } else {
+        url.searchParams.delete('category');
+      }
+      history.pushState({}, '', url);
+      
+      loadBooks(1);
+    });
+  });
+  
+  // Search with debounce
+  let searchTimeout;
+  document.getElementById('searchInput')?.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    currentSearch = e.target.value;
+    
+    searchTimeout = setTimeout(() => {
+      currentPage = 1;
+      hasMore = true;
+      noMoreBooks?.classList.add('hidden');
+      loadBooks(1);
+    }, 300);
+  });
+  
+  // Initial load
+  loadBooks(1);
+</script>

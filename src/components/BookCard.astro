@@ -1,0 +1,84 @@
+---
+interface Props {
+  id: string;
+  title: string;
+  author: string;
+  coverImage: string;
+  category: string;
+  showFavorite?: boolean;
+}
+
+const { id, title, author, coverImage, category, showFavorite = true } = Astro.props;
+---
+
+<div class="bg-surface-card rounded-lg shadow-level1 border border-border overflow-hidden hover:shadow-level2 transition-all group">
+  <a href={`/books/${id}`}>
+    <div class="aspect-[3/4] bg-bg-muted overflow-hidden relative">
+      <img
+        src={coverImage}
+        alt={title}
+        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        loading="lazy"
+        onerror="this.src='https://placehold.co/300x400/e2e8f0/94a3b8?text=No+Cover'"
+      />
+      <div class="absolute top-2 right-2 bg-primary text-fg text-xs font-semibold px-2 py-1 rounded">
+        GRATIS
+      </div>
+    </div>
+  </a>
+  <div class="p-4">
+    <span class="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-sm">{category}</span>
+    <a href={`/books/${id}`}>
+      <h3 class="font-display font-semibold mt-2 text-fg group-hover:text-primary transition-colors line-clamp-2">{title}</h3>
+    </a>
+    <p class="text-sm text-fg-secondary mt-1">{author}</p>
+    <div class="flex items-center justify-between mt-3">
+      <a href={`/books/${id}/read`} class="bg-primary hover:bg-primary-hover text-fg px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2">
+        <i class="ph ph-book-open"></i>
+        <span>Baca</span>
+      </a>
+      {showFavorite && (
+        <button
+          class="favorite-btn p-2 rounded-md hover:bg-bg-muted text-fg-secondary hover:text-danger transition-colors"
+          data-book-id={id}
+          title="Tambah ke favorit"
+        >
+          <i class="ph ph-heart"></i>
+        </button>
+      )}
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.favorite-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const bookId = (e.currentTarget as HTMLElement).dataset.bookId;
+      if (!bookId) return;
+      
+      try {
+        const res = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookId }),
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          const icon = btn.querySelector('i');
+          if (data.favorited) {
+            icon.className = 'ph-fill ph-heart text-danger';
+            btn.title = 'Hapus dari favorit';
+          } else {
+            icon.className = 'ph ph-heart';
+            btn.title = 'Tambah ke favorit';
+          }
+        } else if (res.status === 401) {
+          window.location.href = '/auth/login';
+        }
+      } catch {
+        alert('Gagal menambahkan ke favorit');
+      }
+    });
+  });
+</script>

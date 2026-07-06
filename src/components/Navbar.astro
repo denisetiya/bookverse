@@ -1,0 +1,50 @@
+---
+const user = Astro.locals.user;
+---
+
+<nav class="bg-surface border-b border-border sticky top-0 z-50 shadow-level1">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <div class="flex items-center gap-8">
+        <a href="/" class="flex items-center gap-2">
+          <i class="ph ph-book-open text-primary text-2xl"></i>
+          <span class="font-display text-xl font-bold text-fg">BookVerse</span>
+        </a>
+        <div class="hidden md:flex items-center gap-6">
+          <a href="/" class="text-fg-secondary hover:text-fg transition-colors">Beranda</a>
+          <a href="/books" class="text-fg-secondary hover:text-fg transition-colors">Katalog</a>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        {user ? (
+          <>
+            <a href="/cart" class="text-fg-secondary hover:text-fg transition-colors relative">
+              <i class="ph ph-shopping-cart text-xl"></i>
+            </a>
+            <a href="/dashboard" class="text-fg-secondary hover:text-fg transition-colors">
+              <i class="ph ph-user text-xl"></i>
+            </a>
+            <span class="text-sm text-fg-secondary hidden sm:inline">{user.name}</span>
+            <button id="logout-btn" class="text-sm text-danger hover:text-danger-hover transition-colors">
+              Keluar
+            </button>
+          </>
+        ) : (
+          <>
+            <a href="/auth/login" class="text-sm text-fg-secondary hover:text-fg transition-colors">Masuk</a>
+            <a href="/auth/register" class="bg-primary hover:bg-primary-hover text-fg text-sm font-medium px-4 py-2 rounded-md transition-colors">
+              Daftar
+            </a>
+          </>
+        )}
+      </div>
+    </div>
+  </div>
+</nav>
+
+<script>
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/';
+  });
+</script>

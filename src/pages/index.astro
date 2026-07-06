@@ -1,0 +1,153 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+import Hero from '../components/Hero.astro';
+import BookCard from '../components/BookCard.astro';
+import { db } from '../lib/db.ts';
+import { books } from '../schema/index.ts';
+import { desc, eq } from 'drizzle-orm';
+
+let featuredBooks: any[] = [];
+try {
+  featuredBooks = await db.select().from(books).where(eq(books.featured, true)).limit(6);
+} catch (e) {
+  console.error('DB error:', e);
+}
+
+const testimonials = [
+  { name: 'Rina S.', text: 'Koleksi bukunya lengkap dan pengirimannya cepat. Sangat puas!', rating: 5 },
+  { name: 'Budi P.', text: 'Harga bersaing dan banyak promo menarik. Recommended!', rating: 5 },
+  { name: 'Dewi L.', text: 'Suka banget dengan pilihan bukunya yang beragam.', rating: 4 },
+];
+---
+
+<Layout>
+  <Navbar />
+  <main class="flex-1">
+    <Hero />
+
+    {/* Featured Books */}
+    {featuredBooks.length > 0 && (
+      <section class="py-16 bg-bg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="text-center mb-12">
+            <h2 class="font-display text-3xl font-bold text-fg">Buku Unggulan</h2>
+            <p class="mt-2 text-fg-secondary">Koleksi pilihan terbaik untukmu</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featuredBooks.map((book) => (
+              <BookCard
+                id={book.id}
+                title={book.title}
+                author={book.author}
+                coverImage={book.coverImage}
+                category={book.category}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+
+
+    {/* Categories */}
+    <section class="py-16 bg-bg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+          <h2 class="font-display text-3xl font-bold text-fg">Jelajahi Kategori</h2>
+          <p class="mt-2 text-fg-secondary">Temukan buku sesuai minatmu</p>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <a href="/books?category=Fiksi" class="group relative overflow-hidden rounded-lg hover:shadow-level2 transition-all">
+            <div class="aspect-[3/4] overflow-hidden">
+              <img src="https://covers.openlibrary.org/b/id/6643692-L.jpg" alt="Fiksi" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4">
+              <span class="text-white font-semibold text-lg">Fiksi</span>
+            </div>
+          </a>
+          <a href="/books?category=Non-Fiksi" class="group relative overflow-hidden rounded-lg hover:shadow-level2 transition-all">
+            <div class="aspect-[3/4] overflow-hidden">
+              <img src="https://covers.openlibrary.org/b/id/8634250-L.jpg" alt="Non-Fiksi" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4">
+              <span class="text-white font-semibold text-lg">Non-Fiksi</span>
+            </div>
+          </a>
+          <a href="/books?category=Teknologi" class="group relative overflow-hidden rounded-lg hover:shadow-level2 transition-all">
+            <div class="aspect-[3/4] overflow-hidden">
+              <img src="https://covers.openlibrary.org/b/id/8091260-L.jpg" alt="Teknologi" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4">
+              <span class="text-white font-semibold text-lg">Teknologi</span>
+            </div>
+          </a>
+          <a href="/books?category=Bisnis" class="group relative overflow-hidden rounded-lg hover:shadow-level2 transition-all">
+            <div class="aspect-[3/4] overflow-hidden">
+              <img src="https://covers.openlibrary.org/b/id/8236672-L.jpg" alt="Bisnis" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4">
+              <span class="text-white font-semibold text-lg">Bisnis</span>
+            </div>
+          </a>
+          <a href="/books?category=Anak" class="group relative overflow-hidden rounded-lg hover:shadow-level2 transition-all">
+            <div class="aspect-[3/4] overflow-hidden">
+              <img src="https://covers.openlibrary.org/b/id/10521270-L.jpg" alt="Anak" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4">
+              <span class="text-white font-semibold text-lg">Anak</span>
+            </div>
+          </a>
+          <a href="/books?category=Sastra" class="group relative overflow-hidden rounded-lg hover:shadow-level2 transition-all">
+            <div class="aspect-[3/4] overflow-hidden">
+              <img src="https://covers.openlibrary.org/b/id/8241819-L.jpg" alt="Sastra" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4">
+              <span class="text-white font-semibold text-lg">Sastra</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    {/* Testimonials */}
+    <section class="py-16 bg-bg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+          <h2 class="font-display text-3xl font-bold text-fg">Apa Kata Mereka</h2>
+          <p class="mt-2 text-fg-secondary">Testimoni dari pelanggan kami</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {testimonials.map((t) => (
+            <div class="bg-surface-card rounded-lg p-6 shadow-level1 border border-border">
+              <div class="flex gap-1 mb-3">
+                {Array.from({ length: t.rating }).map(() => (
+                  <i class="ph-fill ph-star text-primary"></i>
+                ))}
+              </div>
+              <p class="text-fg-secondary italic mb-4">"{t.text}"</p>
+              <p class="font-semibold text-fg">{t.name}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    {/* CTA */}
+    <section class="py-16 bg-primary">
+      <div class="max-w-4xl mx-auto px-4 text-center">
+        <h2 class="font-display text-3xl font-bold text-fg">Siap Membaca?</h2>
+        <p class="mt-4 text-fg-secondary text-lg">
+          Daftar sekarang dan dapatkan diskon 10% untuk pembelian pertama!
+        </p>
+        <div class="mt-8 flex gap-4 justify-center">
+          <a href="/auth/register" class="bg-fg text-bg font-semibold px-8 py-3 rounded-md hover:bg-fg/90 transition-colors">
+            Daftar Sekarang
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</Layout>

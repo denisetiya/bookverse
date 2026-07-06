@@ -1,0 +1,97 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+import { db } from '../lib/db.ts';
+import { orders, orderItems, books } from '../schema/index.ts';
+import { eq, desc } from 'drizzle-orm';
+
+const user = Astro.locals.user!;
+
+let userOrders: any[] = [];
+try {
+  userOrders = await db.select().from(orders).where(eq(orders.userId, user.id)).orderBy(desc(orders.createdAt));
+} catch (e) {
+  console.error('DB error:', e);
+}
+---
+
+<Layout title="Dashboard - BookVerse">
+  <Navbar />
+  <main class="flex-1 bg-bg-canvas">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1 class="font-display text-3xl font-bold text-fg mb-8">Dashboard</h1>
+
+      <div class="grid md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-surface-card rounded-lg border border-border p-6">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <i class="ph ph-user text-primary text-xl"></i>
+            </div>
+            <div>
+              <p class="text-sm text-fg-secondary">Nama</p>
+              <p class="font-semibold text-fg">{user.name}</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-surface-card rounded-lg border border-border p-6">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full bg-info/10 flex items-center justify-center">
+              <i class="ph ph-envelope text-info text-xl"></i>
+            </div>
+            <div>
+              <p class="text-sm text-fg-secondary">Email</p>
+              <p class="font-semibold text-fg">{user.email}</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-surface-card rounded-lg border border-border p-6">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
+              <i class="ph ph-package text-success text-xl"></i>
+            </div>
+            <div>
+              <p class="text-sm text-fg-secondary">Pesanan</p>
+              <p class="font-semibold text-fg">{userOrders.length}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="font-display text-xl font-bold text-fg mb-4">Riwayat Pesanan</h2>
+      {userOrders.length > 0 ? (
+        <div class="space-y-4">
+          {userOrders.map((order) => (
+            <div class="bg-surface-card rounded-lg border border-border p-6">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="text-sm text-fg-muted">Order #{order.id.slice(0, 8)}</p>
+                  <p class="font-semibold text-fg mt-1">Rp {Number(order.total).toLocaleString('id-ID')}</p>
+                </div>
+                <span class={`text-sm px-3 py-1 rounded-full ${
+                  order.status === 'completed' ? 'bg-success/10 text-success' :
+                  order.status === 'pending' ? 'bg-primary/10 text-primary' :
+                  'bg-fg-muted/10 text-fg-muted'
+                }`}>
+                  {order.status}
+                </span>
+              </div>
+              <p class="text-sm text-fg-secondary mt-2">
+                {new Date(order.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div class="text-center py-12 bg-surface-card rounded-lg border border-border">
+          <i class="ph ph-package text-4xl text-fg-muted mb-3"></i>
+          <p class="text-fg-secondary">Belum ada pesanan</p>
+          <a href="/books" class="inline-block mt-3 text-primary hover:text-primary-hover font-medium">
+            Mulai Belanja
+          </a>
+        </div>
+      )}
+    </div>
+  </main>
+  <Footer />
+</Layout>

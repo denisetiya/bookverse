@@ -1,0 +1,25 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+import LoginForm from '../../islands/LoginForm.tsx';
+---
+
+<Layout title="Masuk - BookVerse">
+  <Navbar />
+  <main class="flex-1 flex items-center justify-center bg-bg-canvas py-12">
+    <div class="w-full max-w-md px-4">
+      <div class="bg-surface-card rounded-lg shadow-level2 border border-border p-8">
+        <div class="text-center mb-8">
+          <h1 class="font-display text-2xl font-bold text-fg">Masuk ke BookVerse</h1>
+          <p class="mt-2 text-fg-secondary">Selamat datang kembali!</p>
+        </div>
+        <LoginForm client:load />
+        <p class="mt-6 text-center text-sm text-fg-secondary">
+          Belum punya akun? <a href="/auth/register" class="text-primary hover:text-primary-hover font-medium">Daftar</a>
+        </p>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>

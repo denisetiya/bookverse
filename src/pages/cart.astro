@@ -1,0 +1,17 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+import CartPageIsland from '../islands/CartPage.tsx';
+---
+
+<Layout title="Keranjang - BookVerse">
+  <Navbar />
+  <main class="flex-1 bg-bg-canvas">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1 class="font-display text-3xl font-bold text-fg mb-8">Keranjang Belanja</h1>
+      <CartPageIsland client:load />
+    </div>
+  </main>
+  <Footer />
+</Layout>

@@ -1,0 +1,91 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="Favorit Saya - BookVerse">
+  <Navbar />
+  <main class="flex-1 bg-bg-canvas">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="mb-8">
+        <h1 class="font-display text-3xl font-bold text-fg">Favorit Saya</h1>
+        <p class="mt-2 text-fg-secondary">Buku yang kamu sukai</p>
+      </div>
+
+      {/* Favorites Grid */}
+      <div id="favoritesGrid" class="grid grid-cols-3 gap-6">
+        {/* Loaded via JS */}
+      </div>
+      
+      {/* Loading */}
+      <div id="loadingIndicator" class="py-12 text-center">
+        <div class="inline-flex items-center gap-3">
+          <div class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-fg-secondary">Memuat favorit...</span>
+        </div>
+      </div>
+      
+      {/* Empty state */}
+      <div id="emptyState" class="hidden text-center py-20">
+        <i class="ph ph-heart text-6xl text-fg-muted mb-4"></i>
+        <h2 class="text-xl font-semibold text-fg mb-2">Belum Ada Favorit</h2>
+        <p class="text-fg-secondary mb-6">Klik ikon hati pada buku untuk menambahkannya ke favorit</p>
+        <a href="/books" class="bg-primary text-fg px-6 py-3 rounded-md hover:bg-primary/90 transition-colors">
+          Jelajahi Buku
+        </a>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  const grid = document.getElementById('favoritesGrid');
+  const loading = document.getElementById('loadingIndicator');
+  const emptyState = document.getElementById('emptyState');
+  
+  async function loadFavorites() {
+    try {
+      const res = await fetch('/api/favorites');
+      const data = await res.json();
+      
+      loading?.classList.add('hidden');
+      
+      if (data.length === 0) {
+        emptyState?.classList.remove('hidden');
+        return;
+      }
+      
+      data.forEach(({ book }) => {
+        grid.insertAdjacentHTML('beforeend', `
+          <a href="/books/${book.id}" class="group block bg-surface-card rounded-lg overflow-hidden border border-border hover:shadow-level2 transition-all">
+            <div class="aspect-[3/4] overflow-hidden relative">
+              <img 
+                src="${book.coverImage}" 
+                alt="${book.title}"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+                onerror="this.src='https://placehold.co/300x400/e2e8f0/94a3b8?text=No+Cover'"
+              />
+              <div class="absolute top-2 right-2 bg-primary text-fg text-xs font-semibold px-2 py-1 rounded">
+                GRATIS
+              </div>
+            </div>
+            <div class="p-4">
+              <div class="text-xs text-primary font-medium mb-1">${book.category}</div>
+              <h3 class="font-semibold text-fg line-clamp-2 mb-1">${book.title}</h3>
+              <p class="text-sm text-fg-secondary">${book.author}</p>
+            </div>
+          </a>
+        `);
+      });
+      
+    } catch (e) {
+      console.error('Error loading favorites:', e);
+      loading.innerHTML = '<p class="text-danger">Gagal memuat favorit</p>';
+    }
+  }
+  
+  loadFavorites();
+</script>

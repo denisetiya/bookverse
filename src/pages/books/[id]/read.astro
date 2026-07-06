@@ -1,0 +1,264 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Navbar from '../../../components/Navbar.astro';
+import Footer from '../../../components/Footer.astro';
+import { db } from '../../../lib/db.ts';
+import { books } from '../../../schema/index.ts';
+import { eq } from 'drizzle-orm';
+
+const { id } = Astro.params;
+
+let book = null;
+try {
+  const result = await db.select().from(books).where(eq(books.id, id));
+  book = result[0] || null;
+} catch (e) {
+  console.error('DB error:', e);
+}
+
+if (!book) {
+  return Astro.redirect('/books');
+}
+
+// Build the Open Library read URL
+// Format: /works/OL12345W → we need the edition OLID for the embed
+// We'll use the OLID from the openLibraryKey
+const olid = book.openLibraryKey?.replace('/works/', '') || '';
+const archiveId = book.archiveId || '';
+---
+
+<Layout title={`${book.title} - Baca Online`}>
+  <Navbar />
+  <main class="flex-1 bg-bg-canvas">
+    {/* Reader Header */}
+    <div class="bg-surface border-b border-border sticky top-0 z-20">
+      <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <a href={`/books/${book.id}`} class="text-fg-secondary hover:text-fg transition-colors">
+              <i class="ph ph-arrow-left text-xl"></i>
+            </a>
+            <div>
+              <h1 class="font-semibold text-fg text-sm sm:text-base">{book.title}</h1>
+              <p class="text-xs sm:text-sm text-fg-secondary">{book.author}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            <span class="bg-primary text-fg text-xs font-semibold px-2 py-1 rounded hidden sm:inline">
+              <i class="ph ph-book-open mr-1"></i>Baca Online
+            </span>
+            <button id="toggleFullscreen" class="p-2 rounded hover:bg-bg-muted text-fg-secondary transition-colors" title="Fullscreen">
+              <i class="ph ph-arrows-out text-lg"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    {/* Open Library BookReader Embed */}
+    <div id="readerContainer" class="w-full bg-white" style="height: calc(100vh - 120px);">
+      {/* Loading state */}
+      <div id="loadingState" class="flex items-center justify-center h-full">
+        <div class="text-center">
+          <div class="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p class="text-fg-secondary">Memuat buku...</p>
+          <p class="text-fg-muted text-sm mt-1">Menghubungkan ke Open Library</p>
+        </div>
+      </div>
+      
+      {/* The embedded BookReader iframe */}
+      <iframe 
+        id="bookReaderFrame"
+        class="w-full h-full hidden"
+        frameborder="0"
+        allowfullscreen
+        allow="fullscreen"
+        sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms"
+      ></iframe>
+      
+      {/* Fallback if embed fails */}
+      <div id="fallbackState" class="hidden flex items-center justify-center h-full">
+        <div class="text-center max-w-md mx-auto px-4">
+          <i class="ph ph-book-open-text text-6xl text-fg-muted mb-4"></i>
+          <h2 class="text-xl font-semibold text-fg mb-2">Baca di Open Library</h2>
+          <p class="text-fg-secondary mb-6">
+            Buku ini tersedia untuk dibaca langsung di Open Library. Klik tombol di bawah untuk membaca.
+          </p>
+          <a 
+            id="olReadLink"
+            href="#" 
+            target="_blank"
+            class="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-fg font-semibold py-3 px-6 rounded-md transition-colors"
+          >
+            <i class="ph ph-arrow-square-out"></i>
+            Buka Open Library
+          </a>
+          <div class="mt-6 pt-6 border-t border-border">
+            <p class="text-sm text-fg-muted">
+              Buku ini juga tersedia di Internet Archive
+            </p>
+            <a 
+              id="archiveLink"
+              href="#" 
+              target="_blank"
+              class="inline-flex items-center gap-2 mt-2 text-primary hover:underline text-sm"
+            >
+              <i class="ph ph-archive"></i>
+              Baca di Internet Archive
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script define:vars={{ bookId: book.id, olid, archiveId, bookTitle: book.title }}>
+  const loadingState = document.getElementById('loadingState');
+  const bookReaderFrame = document.getElementById('bookReaderFrame');
+  const fallbackState = document.getElementById('fallbackState');
+  const olReadLink = document.getElementById('olReadLink');
+  const archiveLink = document.getElementById('archiveLink');
+  const toggleFullscreen = document.getElementById('toggleFullscreen');
+  
+  // Fullscreen toggle
+  toggleFullscreen?.addEventListener('click', () => {
+    const container = document.getElementById('readerContainer');
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      container?.requestFullscreen();
+    }
+  });
+  
+  async function loadReader() {
+    try {
+      // Step 1: Try to find an Internet Archive edition with readable content
+      let iaIdentifier = archiveId;
+      
+      if (!iaIdentifier && olid) {
+        // Try to get the Internet Archive identifier from Open Library
+        try {
+          const res = await fetch(`https://openlibrary.org/works/${olid}.json`);
+          if (res.ok) {
+            const data = await res.json();
+            iaIdentifier = data.ocaid || '';
+            
+            // Also try to get editions with readable content
+            if (!iaIdentifier && data.editions?.entries) {
+              for (const edition of data.editions.entries) {
+                if (edition.ocaid) {
+                  iaIdentifier = edition.ocaid;
+                  break;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.log('Could not fetch OL data:', e);
+        }
+      }
+      
+      // Step 2: Try Internet Archive BookReader embed
+      if (iaIdentifier) {
+        // Try to verify the IA item exists and is readable
+        try {
+          const iaRes = await fetch(`https://archive.org/metadata/${iaIdentifier}`);
+          if (iaRes.ok) {
+            const iaData = await iaRes.json();
+            
+            if (iaData.metadata) {
+              // Use the IA BookReader embed
+              const embedUrl = `https://archive.org/embed/${iaIdentifier}?ui=embed`;
+              
+              bookReaderFrame.src = embedUrl;
+      
+              let iframeLoaded = false;
+              bookReaderFrame.onload = () => {
+                iframeLoaded = true;
+                loadingState.classList.add('hidden');
+                bookReaderFrame.classList.remove('hidden');
+                fallbackState.classList.add('hidden');
+              };
+      
+              // Timeout fallback
+              setTimeout(() => {
+                if (!iframeLoaded && !loadingState.classList.contains('hidden')) {
+                  showFallback(iaIdentifier);
+                }
+              }, 10000);
+              return;
+            }
+          }
+        } catch (e) {
+          console.log('IA metadata check failed:', e);
+        }
+      }
+      
+      // Step 3: Try Open Library's own reader (works for some books)
+      if (olid) {
+        // Try the OL embedded reader directly
+        const olEmbedUrl = `https://openlibrary.org/books/ia/${olid}/-`;
+        
+        try {
+          const testRes = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(bookTitle)}&fields=key,ia&limit=1`);
+          if (testRes.ok) {
+            const searchData = await testRes.json();
+            if (searchData.docs?.length > 0 && searchData.docs[0].ia?.length > 0) {
+              const foundIaId = searchData.docs[0].ia[0];
+              const embedUrl = `https://archive.org/embed/${foundIaId}?ui=embed`;
+              
+              bookReaderFrame.src = embedUrl;
+              
+              let iframeLoaded2 = false;
+              bookReaderFrame.onload = () => {
+                iframeLoaded2 = true;
+                loadingState.classList.add('hidden');
+                bookReaderFrame.classList.remove('hidden');
+                fallbackState.classList.add('hidden');
+              };
+              
+              setTimeout(() => {
+                if (!iframeLoaded2 && !loadingState.classList.contains('hidden')) {
+                  showFallback(foundIaId);
+                }
+              }, 10000);
+              return;
+            }
+          }
+        } catch (e) {
+          console.log('OL search failed:', e);
+        }
+      }
+      
+      // Step 4: All failed — show fallback
+      showFallback(iaIdentifier || '');
+      
+    } catch (e) {
+      console.error('Reader error:', e);
+      showFallback('');
+    }
+  }
+  
+  function showFallback(iaIdentifier) {
+    loadingState.classList.add('hidden');
+    fallbackState.classList.remove('hidden');
+    
+    // Set up links
+    if (olid) {
+      olReadLink.href = `https://openlibrary.org/works/${olid}`;
+    } else {
+      olReadLink.href = `https://openlibrary.org/search?q=${encodeURIComponent(bookTitle)}`;
+    }
+    
+    if (iaIdentifier) {
+      archiveLink.href = `https://archive.org/details/${iaIdentifier}`;
+      archiveLink.classList.remove('hidden');
+    } else {
+      archiveLink.classList.add('hidden');
+    }
+  }
+  
+  loadReader();
+</script>

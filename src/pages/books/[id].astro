@@ -1,0 +1,118 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+import { db } from '../../lib/db.ts';
+import { books } from '../../schema/index.ts';
+import { eq } from 'drizzle-orm';
+
+const { id } = Astro.params;
+
+let book: any = null;
+try {
+  const result = await db.select().from(books).where(eq(books.id, id!)).limit(1);
+  book = result[0] || null;
+} catch (e) {
+  console.error('DB error:', e);
+}
+
+if (!book) {
+  return Astro.redirect('/books');
+}
+---
+
+<Layout title={`${book.title} - BookVerse`}>
+  <Navbar />
+  <main class="flex-1 bg-bg-canvas">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid md:grid-cols-2 gap-12">
+        <div class="aspect-[3/4] bg-bg-muted rounded-lg overflow-hidden shadow-level2 relative">
+          <img 
+            src={book.coverImage} 
+            alt={book.title} 
+            class="w-full h-full object-cover"
+            onerror="this.src='https://placehold.co/300x400/e2e8f0/94a3b8?text=No+Cover'"
+          />
+          <div class="absolute top-4 right-4 bg-primary text-fg text-sm font-semibold px-3 py-1.5 rounded">
+            GRATIS
+          </div>
+        </div>
+        <div>
+          <span class="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-sm">{book.category}</span>
+          <h1 class="font-display text-3xl font-bold text-fg mt-4">{book.title}</h1>
+          <p class="text-lg text-fg-secondary mt-2">oleh {book.author}</p>
+          
+          {book.publishedYear && (
+            <p class="text-sm text-fg-muted mt-2">Tahun terbit: {book.publishedYear}</p>
+          )}
+          
+          <p class="mt-6 text-fg-secondary leading-relaxed">{book.description}</p>
+          
+          <div class="mt-8 flex gap-4">
+            <a
+              href={`/books/${book.id}/read`}
+              class="flex-1 bg-primary hover:bg-primary-hover text-fg font-semibold py-3 px-6 rounded-md transition-colors flex items-center justify-center gap-2"
+            >
+              <i class="ph ph-book-open"></i>
+              Baca Gratis
+            </a>
+            <button
+              id="favorite-btn"
+              data-book-id={book.id}
+              class="p-3 rounded-md border border-border hover:border-primary hover:bg-bg-muted text-fg-secondary hover:text-danger transition-colors"
+              title="Tambah ke favorit"
+            >
+              <i class="ph ph-heart text-xl"></i>
+            </button>
+          </div>
+          
+          <div class="mt-6 flex items-center gap-4 text-sm text-fg-muted">
+            <div class="flex items-center gap-1">
+              <i class="ph ph-translate"></i>
+              <span>{book.language === 'id' ? 'Indonesia' : book.language === 'en' ? 'Inggris' : book.language}</span>
+            </div>
+            {book.openLibraryKey && (
+              <div class="flex items-center gap-1">
+                <i class="ph ph-database"></i>
+                <span>Open Library</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  const favBtn = document.getElementById('favorite-btn');
+  favBtn?.addEventListener('click', async () => {
+    const bookId = favBtn.dataset.bookId;
+    if (!bookId) return;
+    
+    try {
+      const res = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookId }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const icon = favBtn.querySelector('i');
+        if (data.favorited) {
+          icon.className = 'ph-fill ph-heart text-xl text-danger';
+          favBtn.title = 'Hapus dari favorit';
+        } else {
+          icon.className = 'ph ph-heart text-xl';
+          favBtn.title = 'Tambah ke favorit';
+        }
+      } else if (res.status === 401) {
+        window.location.href = '/auth/login';
+      }
+    } catch {
+      alert('Gagal menambahkan ke favorit');
+    }
+  });
+</script>
